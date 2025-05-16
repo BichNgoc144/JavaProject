@@ -6,7 +6,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.format.DateTimeFormatter;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
 
 public class UseMachineForm extends JFrame {
     private JTable machineTable;
@@ -17,8 +21,28 @@ public class UseMachineForm extends JFrame {
     private LocalDateTime endTime;
     private double pricePerHour;
     private JButton btnLogout;
+    private int userId ; 
+    
+    // Usage information components
+    private JPanel infoPanel;
+    private JPanel startTimePanel;
+    private JPanel usageDurationPanel;
+    private JPanel costPanel;
+    private JPanel balancePanel;
+    private JLabel startTimeLabel;
+    private JLabel usageDurationLabel;
+    private JLabel costLabel;
+    private JLabel balanceLabel;
+    private Timer usageTimer;
+    private DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy");
 
     public UseMachineForm() {
+        this(1); // Default constructor với userId = 1
+    }
+    
+    public UseMachineForm(int userid) {
+        this.userId = userid; // Fix lỗi: Phải gán userid (tham số) chứ không phải userId (thuộc tính mặc định)
+        System.out.println("sudung may userID " + userid);
         setTitle("Sử Dụng Máy - Quản lý Quán Net");
         setSize(700, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -42,6 +66,9 @@ public class UseMachineForm extends JFrame {
         // Label hiển thị tổng tiền
         totalLabel = new JLabel("Tổng tiền: 0 VNĐ");
         add(totalLabel, BorderLayout.NORTH);
+        
+        // Create information panel to display usage details on the right side
+        createInfoPanel();
 
         // Nút "Bắt đầu sử dụng"
         startButton = new JButton("Bắt đầu");
@@ -84,7 +111,7 @@ public class UseMachineForm extends JFrame {
 
         // Nút Home
         btnLogout.addActionListener(e -> {
-            new GiaoDienUser().setVisible(true);
+            new GiaoDienUser(userId).setVisible(true); // Sử dụng userId đã lưu
             dispose();
         });
     }
@@ -121,6 +148,16 @@ public class UseMachineForm extends JFrame {
             return;
         }
 
+        // Check current balance
+        double currentBalance = getCurrentBalance();
+        if (currentBalance <= 0) {
+            JOptionPane.showMessageDialog(this,
+                    "Số dư tài khoản của bạn không đủ để sử dụng máy!\nVui lòng nạp tiền trước khi sử dụng.",
+                    "Số dư không đủ",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         String selectedMachineName = (String) machineTable.getValueAt(selectedRow, 2);
         Object priceObj = machineTable.getValueAt(selectedRow, 3);
         if (priceObj instanceof Number) {
@@ -133,7 +170,7 @@ public class UseMachineForm extends JFrame {
         try (Connection conn = KetNoiCSDL.getConnection()) {
             String sql = "INSERT INTO machine_usage (user_id, machine_name, start_time, total_amount) VALUES (?, ?, ?, ?)";
             PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setInt(1, 1);  // Giả sử ID người dùng là 1
+            stmt.setInt(1, userId);  // Sử dụng ID người dùng hiện tại
             stmt.setString(2, selectedMachineName);
             stmt.setTimestamp(3, Timestamp.valueOf(startTime));
             stmt.setBigDecimal(4, new java.math.BigDecimal(0));  // Ban đầu là 0
@@ -141,6 +178,18 @@ public class UseMachineForm extends JFrame {
             stmt.executeUpdate();
             startButton.setEnabled(false);
             stopButton.setEnabled(true);
+            
+            // Update UI with usage information
+            startTimeLabel.setText(startTime.format(timeFormatter));
+            
+            // Start the usage timer to update information every second
+            if (usageTimer != null && usageTimer.isRunning()) {
+                usageTimer.stop();
+            }
+            
+            usageTimer = new Timer(1000, e -> updateUsageInfo());
+            usageTimer.start();
+            
             JOptionPane.showMessageDialog(this, "Đã bắt đầu sử dụng máy: " + selectedMachineName);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -149,6 +198,7 @@ public class UseMachineForm extends JFrame {
     }
 
     // Kết thúc sử dụng máy
+    // Kết thúc sử dụng máy
     private void stopUsingMachine() {
         int selectedRow = machineTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -156,15 +206,21 @@ public class UseMachineForm extends JFrame {
             return;
         }
 
+        if (usageTimer != null && usageTimer.isRunning()) {
+            usageTimer.stop();
+        }
+
         String selectedMachineName = (String) machineTable.getValueAt(selectedRow, 2);
         endTime = LocalDateTime.now();
 
-        long minutesUsed = java.time.Duration.between(startTime, endTime).toMinutes();
-        double hoursUsed = minutesUsed / 60.0;
+        Duration duration = Duration.between(startTime, endTime);
+        // Tính thời gian sử dụng bằng giây để tính tiền chính xác hơn
+        long secondsUsed = duration.getSeconds();
+        double hoursUsed = secondsUsed / 3600.0; // Chuyển đổi giây sang giờ để tính tiền chính xác
         double totalAmount = hoursUsed * pricePerHour;
-        if (totalAmount < pricePerHour / 2) {
-            totalAmount = pricePerHour / 2;  // Tính nửa giá nếu dùng dưới 30 phút
-        }
+        System.out.println("secon " + secondsUsed);
+        System.out.println("hour: " + hoursUsed);
+        System.out.println("total: " + totalAmount);
 
         try (Connection conn = KetNoiCSDL.getConnection()) {
             conn.setAutoCommit(false);
@@ -175,16 +231,16 @@ public class UseMachineForm extends JFrame {
             try (PreparedStatement stmtUsage = conn.prepareStatement(sqlUpdateUsage)) {
                 stmtUsage.setTimestamp(1, Timestamp.valueOf(endTime));
                 stmtUsage.setBigDecimal(2, new java.math.BigDecimal(totalAmount));
-                stmtUsage.setInt(3, 1);  // Giả sử user_id = 1
+                stmtUsage.setInt(3, userId);  // Sử dụng ID người dùng hiện tại
                 stmtUsage.setString(4, selectedMachineName);
                 stmtUsage.executeUpdate();
             }
 
-            // Tính số dư
+            // Get updated balance
             double totalDeposit = 0;
             String sqlDeposit = "SELECT COALESCE(SUM(amount), 0) AS total_deposit FROM deposit WHERE user_id = ?";
             try (PreparedStatement stmtDeposit = conn.prepareStatement(sqlDeposit)) {
-                stmtDeposit.setInt(1, 1);
+                stmtDeposit.setInt(1, userId);
                 try (ResultSet rs = stmtDeposit.executeQuery()) {
                     if (rs.next()) {
                         totalDeposit = rs.getDouble("total_deposit");
@@ -195,7 +251,7 @@ public class UseMachineForm extends JFrame {
             double totalUsage = 0;
             String sqlUsage = "SELECT COALESCE(SUM(total_amount), 0) AS total_usage FROM machine_usage WHERE user_id = ?";
             try (PreparedStatement stmtUsageSum = conn.prepareStatement(sqlUsage)) {
-                stmtUsageSum.setInt(1, 1);
+                stmtUsageSum.setInt(1, userId); // Fixed: Use userId instead of hardcoded 1
                 try (ResultSet rs = stmtUsageSum.executeQuery()) {
                     if (rs.next()) {
                         totalUsage = rs.getDouble("total_usage");
@@ -208,19 +264,40 @@ public class UseMachineForm extends JFrame {
 
             conn.commit();
 
+            // Format usage duration nicely
+            String formattedDuration = String.format("%02d:%02d:%02d", 
+                    duration.toHours(), 
+                    duration.toMinutesPart(), 
+                    duration.toSecondsPart());
+            
+            // Reset UI components
+            startTimeLabel.setText("Chưa bắt đầu");
+            usageDurationLabel.setText("00:00:00");
+            costLabel.setText("0 VNĐ");
+            balanceLabel.setText(String.format("%.0f VNĐ", remaining));
             totalLabel.setText(String.format("Tổng tiền: %.0f VNĐ", totalAmount));
+            
+            // Show detailed invoice
             String message = String.format(
-                    "Hóa đơn sử dụng máy: %s\n" +
-                            "-----------------------------\n" +
-                            "Tiền đã nạp: %.0f VNĐ\n" +
-                            "Tiền sử dụng: %.0f VNĐ\n" +
-                            "Số dư còn lại: %.0f VNĐ",
+                    "HÓA ĐƠN SỬ DỤNG MÁY\n" +
+                    "================================\n" +
+                    "Máy: %s\n" +
+                    "Thời gian bắt đầu: %s\n" +
+                    "Thời gian kết thúc: %s\n" +
+                    "Thời gian sử dụng: %s\n" +
+                    "Giá theo giờ: %.0f VNĐ\n" +
+                    "================================\n" +
+                    "Tổng tiền: %.0f VNĐ\n" +
+                    "Số dư còn lại: %.0f VNĐ",
                     selectedMachineName,
-                    totalDeposit,
+                    startTime.format(timeFormatter),
+                    endTime.format(timeFormatter),
+                    formattedDuration,
+                    pricePerHour,
                     totalAmount,
                     remaining
             );
-            JOptionPane.showMessageDialog(this, message);
+            JOptionPane.showMessageDialog(this, message, "Hóa Đơn", JOptionPane.INFORMATION_MESSAGE);
 
             startButton.setEnabled(true);
             stopButton.setEnabled(false);
@@ -229,6 +306,146 @@ public class UseMachineForm extends JFrame {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Lỗi khi kết thúc sử dụng máy!");
         }
+    }
+
+    // Create the information panel with usage details
+    private void createInfoPanel() {
+        infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        infoPanel.setPreferredSize(new Dimension(250, getHeight()));
+        infoPanel.setBackground(new Color(240, 240, 240));
+        
+        JPanel headerPanel = new JPanel();
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBackground(new Color(70, 130, 180));
+        JLabel headerLabel = new JLabel("Thông tin sử dụng", JLabel.CENTER);
+        headerLabel.setForeground(Color.WHITE);
+        headerLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        headerLabel.setBorder(new EmptyBorder(10, 0, 10, 0));
+        headerPanel.add(headerLabel, BorderLayout.CENTER);
+        infoPanel.add(headerPanel);
+        
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        
+        startTimePanel = createInfoLabel("Thời gian bắt đầu:", "Chưa bắt đầu");
+        infoPanel.add(startTimePanel);
+        startTimeLabel = (JLabel) ((JPanel) startTimePanel.getComponent(1)).getComponent(0);
+        
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        
+        usageDurationPanel = createInfoLabel("Thời lượng sử dụng:", "00:00:00");
+        infoPanel.add(usageDurationPanel);
+        usageDurationLabel = (JLabel) ((JPanel) usageDurationPanel.getComponent(1)).getComponent(0);
+        
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        
+        costPanel = createInfoLabel("Chi phí hiện tại:", "0 VNĐ");
+        infoPanel.add(costPanel);
+        costLabel = (JLabel) ((JPanel) costPanel.getComponent(1)).getComponent(0);
+        
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        
+        balancePanel = createInfoLabel("Số dư hiện tại:", "0 VNĐ");
+        infoPanel.add(balancePanel);
+        balanceLabel = (JLabel) ((JPanel) balancePanel.getComponent(1)).getComponent(0);
+        
+        // Update current balance
+        updateBalance();
+        
+        infoPanel.add(Box.createVerticalGlue());
+        
+        add(infoPanel, BorderLayout.EAST);
+    }
+    
+    // Helper method to create standardized info label panels
+    private JPanel createInfoLabel(String labelText, String initialValue) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BorderLayout());
+        panel.setBackground(new Color(240, 240, 240));
+        
+        JLabel label = new JLabel(labelText);
+        label.setFont(new Font("Arial", Font.BOLD, 12));
+        panel.add(label, BorderLayout.NORTH);
+        
+        JPanel valuePanel = new JPanel(new BorderLayout());
+        valuePanel.setBackground(new Color(255, 255, 255));
+        valuePanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                new EmptyBorder(5, 5, 5, 5)));
+        
+        JLabel valueLabel = new JLabel(initialValue);
+        valueLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        valuePanel.add(valueLabel, BorderLayout.CENTER);
+        
+        panel.add(valuePanel, BorderLayout.CENTER);
+        return panel;
+    }
+    
+    // Get current balance from database
+    private double getCurrentBalance() {
+        double totalDeposit = 0;
+        double totalUsage = 0;
+        
+        try (Connection conn = KetNoiCSDL.getConnection()) {
+            // Get total deposits
+            String sqlDeposit = "SELECT COALESCE(SUM(amount), 0) AS total_deposit FROM deposit WHERE user_id = ?";
+            try (PreparedStatement stmtDeposit = conn.prepareStatement(sqlDeposit)) {
+                stmtDeposit.setInt(1, userId);
+                try (ResultSet rs = stmtDeposit.executeQuery()) {
+                    if (rs.next()) {
+                        totalDeposit = rs.getDouble("total_deposit");
+                    }
+                }
+            }
+            
+            // Get total usage
+            String sqlUsage = "SELECT COALESCE(SUM(total_amount), 0) AS total_usage FROM machine_usage WHERE user_id = ?";
+            try (PreparedStatement stmtUsageSum = conn.prepareStatement(sqlUsage)) {
+                stmtUsageSum.setInt(1, userId);
+                try (ResultSet rs = stmtUsageSum.executeQuery()) {
+                    if (rs.next()) {
+                        totalUsage = rs.getDouble("total_usage");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Lỗi khi lấy thông tin số dư!");
+        }
+        
+        return totalDeposit - totalUsage;
+    }
+    
+    // Update balance display
+    private void updateBalance() {
+        double balance = getCurrentBalance();
+        balanceLabel.setText(String.format("%.0f VNĐ", balance));
+    }
+    
+    // Update usage information in real-time
+    private void updateUsageInfo() {
+        if (startTime == null) return;
+        
+        LocalDateTime now = LocalDateTime.now();
+        Duration duration = Duration.between(startTime, now);
+        
+        // Format duration as HH:MM:SS
+        long hours = duration.toHours();
+        long minutes = duration.toMinutesPart();
+        long seconds = duration.toSecondsPart();
+        usageDurationLabel.setText(String.format("%02d:%02d:%02d", hours, minutes, seconds));
+        
+        // Calculate current cost
+        double hoursUsed = duration.toMinutes() / 60.0;
+        double currentCost = hoursUsed * pricePerHour;
+      
+        costLabel.setText(String.format("%.0f VNĐ", currentCost));
+        
+        // Update balance (current balance - current cost)
+        double balance = getCurrentBalance() - currentCost;
+        if (balance < 0) balance = 0;
+        balanceLabel.setText(String.format("%.0f VNĐ", balance));
     }
 
     public static void main(String[] args) {

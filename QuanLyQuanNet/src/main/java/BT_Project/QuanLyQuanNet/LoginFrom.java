@@ -20,11 +20,11 @@ public class LoginFrom extends JFrame {
         setLayout(new GridLayout(5, 2, 10, 10));  // 5 hàng, 2 cột, khoảng cách 10px
 
         add(new JLabel("Tên đăng nhập:"));
-        usernameField = new JTextField();
+        usernameField = new JTextField("bao@gmail.com");
         add(usernameField);
 
         add(new JLabel("Mật khẩu:"));
-        passwordField = new JPasswordField();
+        passwordField = new JPasswordField("12345678");
         add(passwordField);
 
         loginButton = new JButton("Đăng nhập");
@@ -50,7 +50,7 @@ public class LoginFrom extends JFrame {
         }
 
         try (Connection conn = KetNoiCSDL.getConnection()) {
-            String sql = "SELECT password, role FROM users WHERE username = ?";
+            String sql = "SELECT id, password, role FROM users WHERE username = ?";
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, username);  // Chỉ truyền username vào câu lệnh
             ResultSet rs = stmt.executeQuery();
@@ -65,7 +65,11 @@ public class LoginFrom extends JFrame {
                     if (role.equalsIgnoreCase("admin")) {
                         new GiaoDienAdmin().setVisible(true);
                     } else {
-                        new GiaoDienUser().setVisible(true);
+                        // Lấy user_id của người dùng
+                        int userId = rs.getInt("id");
+                       GiaoDienUser a = new GiaoDienUser(userId);
+                       a.updateBalanceDisplay();
+                       a.setVisible(true);
                     }
                     dispose(); // Đóng form đăng nhập
                 } else {

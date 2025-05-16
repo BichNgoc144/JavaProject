@@ -10,11 +10,14 @@ public class UsageHistoryForm extends JFrame {
     private JTable historyTable;
     private DefaultTableModel historyModel;
 
+    private int userId;
+
     public UsageHistoryForm(int userId) {
+        this.userId = userId;
         setTitle("Usage History");
         setSize(700, 400);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
         String[] columnNames = {"Machine Name", "Start Time", "End Time", "Total Amount (VND)"};
@@ -27,6 +30,18 @@ public class UsageHistoryForm extends JFrame {
 
         historyTable = new JTable(historyModel);
         add(new JScrollPane(historyTable), BorderLayout.CENTER);
+        
+        // Thêm nút Home
+        JButton btnHome = new JButton("Home");
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(btnHome);
+        add(buttonPanel, BorderLayout.SOUTH);
+        
+        // Lắng nghe sự kiện khi nhấn nút Home
+        btnHome.addActionListener(e -> {
+            new GiaoDienUser(userId).setVisible(true);
+            dispose();  // Đóng form hiện tại
+        });
 
         loadHistory(userId);
     }
