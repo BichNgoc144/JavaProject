@@ -1,54 +1,155 @@
 package BT_Project.QuanLyQuanNet;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellRenderer;
+import javax.swing.border.*;
+import javax.swing.table.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.sql.*;
 import java.util.HashMap;
 
 public class UserManagementForm extends JFrame {
-
+	
+    private static final Color DARK_BG = new Color(15, 15, 25);
+    private static final Color ACCENT_COLOR = new Color(0, 200, 255);
+    private static final Color TEXT_COLOR = new Color(220, 220, 220);
+    private static final Color TABLE_HEADER_BG = new Color(30, 30, 45);
+    private static final Color TABLE_ROW_BG = new Color(25, 25, 40);
+    private static final Color TABLE_ALT_ROW_BG = new Color(30, 30, 50);
+    
     private JTable userTable;
-    private HashMap<Integer, Integer> rowUserIdMap = new HashMap<>();  // Map: rowIndex -> userId
-    private JButton btnLogout;
-
+    private HashMap<Integer, Integer> rowUserIdMap = new HashMap<>();
+    private JButton btnBack;
 
     public UserManagementForm() {
-        setTitle("Quản lý người dùng");
-        setSize(800, 400);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);  // ✅ để có thể chạy độc lập
+        setTitle("QUẢN LÝ THÀNH VIÊN - GAME CENTER ADMIN");
+        setSize(1000, 600);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        getContentPane().setBackground(DARK_BG);
         setLayout(new BorderLayout());
+        
+        // Panel tiêu đề
+        JPanel headerPanel = new JPanel();
+        headerPanel.setBackground(new Color(20, 20, 35));
+        headerPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, ACCENT_COLOR));
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
+        
+        JLabel titleLabel = new JLabel("QUẢN LÝ THÀNH VIÊN");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        titleLabel.setForeground(ACCENT_COLOR);
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        titleLabel.setBorder(new EmptyBorder(15, 0, 10, 0));
+        
+        JLabel subTitleLabel = new JLabel("Danh sách thành viên và thông tin tài khoản");
+        subTitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        subTitleLabel.setForeground(TEXT_COLOR);
+        subTitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        subTitleLabel.setBorder(new EmptyBorder(0, 0, 15, 0));
+        
+        headerPanel.add(titleLabel);
+        headerPanel.add(subTitleLabel);
+        add(headerPanel, BorderLayout.NORTH);
 
-        String[] columnNames = {"Tên người dùng", "Số dư còn lại (VNĐ)", "Lần sử dụng gần nhất", "Chi tiết"};
+        // Tạo bảng với model
+        String[] columnNames = {"TÊN THÀNH VIÊN", "SỐ DƯ (VNĐ)", "LẦN CUỐI ONLINE", "CHI TIẾT"};
         DefaultTableModel model = new DefaultTableModel(null, columnNames) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 3;  // Chỉ cho phép click vào nút "Chi tiết"
+                return column == 3;
             }
         };
 
-        userTable = new JTable(model);
+        userTable = new JTable(model) {
+            @Override
+            public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
+                Component c = super.prepareRenderer(renderer, row, column);
+                
+                // Đổi màu xen kẽ các dòng
+                if (!isRowSelected(row)) {
+                    c.setBackground(row % 2 == 0 ? TABLE_ROW_BG : TABLE_ALT_ROW_BG);
+                }
+                
+                // Đổi màu chữ
+                c.setForeground(TEXT_COLOR);
+                
+                return c;
+            }
+        };
+
+        // Thiết lập style cho bảng
+        userTable.setSelectionBackground(ACCENT_COLOR.darker());
+        userTable.setSelectionForeground(Color.WHITE);
+        userTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        userTable.setRowHeight(30);
+        userTable.setShowGrid(false);
+        userTable.setIntercellSpacing(new Dimension(0, 0));
+        
+        // Thiết lập style cho header bảng
+        JTableHeader header = userTable.getTableHeader();
+        header.setBackground(TABLE_HEADER_BG);
+        header.setForeground(ACCENT_COLOR);
+        header.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        header.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 70)));
+        header.setReorderingAllowed(false);
+
         JScrollPane scrollPane = new JScrollPane(userTable);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getViewport().setBackground(DARK_BG);
         add(scrollPane, BorderLayout.CENTER);
         
-        btnLogout = new JButton("Home");
-        add(btnLogout, BorderLayout.SOUTH);
+        // Thêm nút chi tiết
+        userTable.getColumn("CHI TIẾT").setCellRenderer(new ButtonRenderer());
+        userTable.getColumn("CHI TIẾT").setCellEditor(new ButtonEditor(new JCheckBox()));
 
-        // Thêm nút "Chi tiết" vào cột cuối
-        userTable.getColumn("Chi tiết").setCellRenderer(new ButtonRenderer());
-        userTable.getColumn("Chi tiết").setCellEditor(new ButtonEditor(new JCheckBox()));
+        // Panel nút điều khiển
+        JPanel controlPanel = new JPanel();
+        controlPanel.setBackground(new Color(20, 20, 35));
+        controlPanel.setBorder(new EmptyBorder(10, 0, 10, 0));
+        
+        btnBack = createGamingButton("QUAY LẠI", new Color(150, 0, 255));
+        btnBack.addActionListener(e -> {
+            new GiaoDienAdmin().setVisible(true);
+            dispose();
+        });
+        controlPanel.add(btnBack);
+        
+        JButton btnRefresh = createGamingButton("LÀM MỚI", ACCENT_COLOR);
+        btnRefresh.addActionListener(e -> loadUserData());
+        controlPanel.add(btnRefresh);
+        
+        add(controlPanel, BorderLayout.SOUTH);
 
         loadUserData();
-        btnLogout.addActionListener(e -> {
-            new GiaoDienAdmin().setVisible(true);
-            dispose();  // Đóng form hiện tại
+    }
+
+    private JButton createGamingButton(String text, Color color) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        button.setForeground(Color.WHITE);
+        button.setBackground(color);
+        button.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(color.darker(), 2),
+            BorderFactory.createEmptyBorder(8, 20, 8, 20)
+        ));
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(color.brighter());
+            }
+            
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(color);
+            }
         });
+        
+        return button;
     }
 
     private void loadUserData() {
-        rowUserIdMap.clear();  // Xóa map cũ nếu có
+        rowUserIdMap.clear();
 
         try (Connection conn = KetNoiCSDL.getConnection()) {
             String sql = "SELECT u.id, u.username, " +
@@ -57,7 +158,7 @@ public class UserManagementForm extends JFrame {
                     "(SELECT MAX(m.start_time) FROM machine_usage m WHERE m.user_id = u.id) AS last_usage " +
                     "FROM users u " +
                     "LEFT JOIN deposit d ON u.id = d.user_id " +
-                    "WHERE u.role != 'admin' " +  // ✅ Chỉ loại bỏ admin
+                    "WHERE u.role != 'admin' " +
                     "GROUP BY u.id, u.username";
 
             DefaultTableModel model = (DefaultTableModel) userTable.getModel();
@@ -76,40 +177,45 @@ public class UserManagementForm extends JFrame {
                     double balance = totalDeposit - totalUsage;
                     if (balance < 0) balance = 0;
 
-                    String lastUsageStr = (lastUsage != null) ? lastUsage.toString() : "Chưa sử dụng";
+                    String lastUsageStr = (lastUsage != null) ? lastUsage.toString() : "CHƯA SỬ DỤNG";
 
-                    // Thêm dòng vào bảng
                     model.addRow(new Object[]{
                             username,
-                            String.format("%.0f", balance),
+                            String.format("%,.0f", balance),
                             lastUsageStr,
-                            "Chi tiết"
+                            "CHI TIẾT"
                     });
 
-                    // Lưu userId theo rowIndex
                     rowUserIdMap.put(rowIndex, userId);
                     rowIndex++;
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Lỗi khi tải dữ liệu người dùng!");
+            JOptionPane.showMessageDialog(this, 
+                "Lỗi khi tải dữ liệu người dùng: " + e.getMessage(), 
+                "Lỗi", 
+                JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    // Renderer cho nút Chi tiết
     private class ButtonRenderer extends JButton implements TableCellRenderer {
         public ButtonRenderer() {
-            setText("Chi tiết");
+            setOpaque(true);
+            setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+            setFont(new Font("Segoe UI", Font.BOLD, 12));
         }
+        
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
-                                                       boolean isSelected, boolean hasFocus, int row, int column) {
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            setText("XEM CHI TIẾT");
+            setBackground(isSelected ? ACCENT_COLOR.darker() : new Color(70, 70, 90));
+            setForeground(Color.WHITE);
             return this;
         }
     }
 
-    // Editor cho nút Chi tiết
     private class ButtonEditor extends DefaultCellEditor {
         private JButton button;
         private String username;
@@ -118,39 +224,46 @@ public class UserManagementForm extends JFrame {
 
         public ButtonEditor(JCheckBox checkBox) {
             super(checkBox);
-            button = new JButton("Chi tiết");
+            button = new JButton("XEM CHI TIẾT");
+            button.setOpaque(true);
+            button.setBackground(new Color(70, 70, 90));
+            button.setForeground(Color.WHITE);
+            button.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
             button.addActionListener(e -> fireEditingStopped());
         }
 
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value,
-                                                     boolean isSelected, int row, int column) {
+                boolean isSelected, int row, int column) {
             username = (String) table.getValueAt(row, 0);
-            userId = rowUserIdMap.get(row);  // Lấy userId từ map
+            userId = rowUserIdMap.get(row);
             clicked = true;
+            button.setBackground(ACCENT_COLOR);
             return button;
         }
 
         @Override
         public Object getCellEditorValue() {
             if (clicked) {
-                // Mở dialog chi tiết
                 UserHistoryDialog historyDialog = new UserHistoryDialog(UserManagementForm.this, userId, username);
                 historyDialog.setVisible(true);
             }
             clicked = false;
-            return "Chi tiết";
-        }
-
-        @Override
-        public boolean stopCellEditing() {
-            clicked = false;
-            return super.stopCellEditing();
+            return "XEM CHI TIẾT";
         }
     }
 
-    // ✅ Hàm MAIN để chạy độc lập
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new UserManagementForm().setVisible(true));
+        SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            
+            UserManagementForm form = new UserManagementForm();
+            form.setVisible(true);
+        });
     }
 }

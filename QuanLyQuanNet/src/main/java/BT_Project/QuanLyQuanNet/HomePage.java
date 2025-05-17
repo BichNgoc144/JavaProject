@@ -2,117 +2,164 @@ package BT_Project.QuanLyQuanNet;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.net.URL;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class HomePage extends JFrame {
-    private JLabel carouselLabel;
-    private int currentImageIndex = 0;
-    private final String[] imageUrls = {
-        "https://lienquan.garena.vn/wp-content/uploads/2024/02/1920.350-KV.jpg",
-        "https://lienquan.garena.vn/wp-content/uploads/2024/02/Cover-homepage_1920x350-4.png",
-        "https://lienquan.garena.vn/wp-content/uploads/2024/02/SeaTalk_IMG_20250219_111035.png"
-    };
+    private Image backgroundImage;
 
     public HomePage() {
-        setTitle("Trang Chủ - Quản lý Quán Net");
-        setSize(800, 600);
+        setTitle("PHONG NET CHAT LUONG CAO - CONTROL PANEL");
+        setSize(1024, 768); 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-
-        // Đặt nền trắng cho toàn bộ trang
-        getContentPane().setBackground(Color.WHITE);
         setLayout(new BorderLayout());
 
-        // Tạo panel cho các nút đăng nhập và đăng ký
-        JPanel buttonsPanel = createButtonsPanel();
-        add(buttonsPanel, BorderLayout.NORTH);  // Thêm vào phía trên cùng
+        // Load gaming background image
+        try {
+        	backgroundImage = new ImageIcon(new URL("https://images.rawpixel.com/image_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDI0LTAzL3Jhd3BpeGVsb2ZmaWNlMjFfYV9taW5pbWFsX2FuZF9sZXNzX2RldGFpbF9pbGx1c3RyYXRpb25fdXNpbmdfbF82MTgxMmRlNS1kYWQxLTQwZTctOTc0My03ODcxZDJmZTMzZmYuanBn.jpg")).getImage();
+        } catch (Exception e) {
+            e.printStackTrace();
+            getContentPane().setBackground(Color.BLACK);
+        }
 
-        // Tạo panel quảng cáo
-        JPanel adPanel = createAdCarousel();
-        add(adPanel, BorderLayout.CENTER);  // Thêm vào giữa màn hình
+        JLayeredPane layeredPane = new JLayeredPane();
+        layeredPane.setPreferredSize(new Dimension(1024, 768));
 
-        // Tạo Timer để thay đổi hình ảnh mỗi 10 giây
-        Timer timer = new Timer();
-        timer.scheduleAtFixedRate(new TimerTask() {
+        // Add background panel
+        JPanel backgroundPanel = new JPanel() {
             @Override
-            public void run() {
-                changeImage(); // Gọi phương thức changeImage để thay đổi hình ảnh
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (backgroundImage != null) {
+                    g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+                } else {
+                    g.setColor(Color.BLACK);
+                    g.fillRect(0, 0, getWidth(), getHeight());
+                }
             }
-        }, 0, 10000); // 10,000 ms = 10 giây
+        };
+        backgroundPanel.setBounds(0, 0, 1024, 768);
+        layeredPane.add(backgroundPanel, JLayeredPane.DEFAULT_LAYER);
+
+        // Add content panel with semi-transparent background
+        JPanel contentPanel = new JPanel();
+        contentPanel.setOpaque(false);
+        contentPanel.setLayout(new BorderLayout());
+        contentPanel.setBounds(0, 0, 1024, 768);
+        layeredPane.add(contentPanel, JLayeredPane.PALETTE_LAYER);
+
+        JPanel buttonsPanel = createGamingButtonsPanel();
+        contentPanel.add(buttonsPanel, BorderLayout.NORTH);
+
+        // Add main title
+        JLabel titleLabel = new JLabel("GAMING NET", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Impact", Font.BOLD, 48));
+        titleLabel.setForeground(new Color(0, 255, 255)); // Cyan color
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(150, 0, 0, 0));
+        contentPanel.add(titleLabel, BorderLayout.CENTER);
+
+        // Add footer
+        JLabel footerLabel = new JLabel("SYSTEM ONLINE | v2.0 | © 2023 GAMING NET", SwingConstants.CENTER);
+        footerLabel.setFont(new Font("Courier New", Font.PLAIN, 14));
+        footerLabel.setForeground(new Color(150, 150, 150));
+        footerLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
+        contentPanel.add(footerLabel, BorderLayout.SOUTH);
+
+        setContentPane(layeredPane);
     }
 
-    // Tạo panel quảng cáo với hình ảnh lớn
-    private JPanel createAdCarousel() {
-        JPanel carouselPanel = new JPanel();
-        carouselPanel.setLayout(new GridLayout(1, 1));
-
-        // Tạo label cho quảng cáo
-        carouselLabel = new JLabel();
-        try {
-            // Tải hình ảnh đầu tiên từ URL
-            ImageIcon initialImage = new ImageIcon(new URL(imageUrls[currentImageIndex]));
-            carouselLabel.setIcon(initialImage);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        // Cập nhật kích thước hình ảnh cho vừa với giao diện
-        carouselLabel.setPreferredSize(new Dimension(750, 350));  // Đặt kích thước phù hợp cho hình ảnh
-        carouselPanel.add(carouselLabel);
-
-        return carouselPanel;
-    }
-
-    // Chuyển hình ảnh quảng cáo
-    private void changeImage() {
-        currentImageIndex = (currentImageIndex + 1) % imageUrls.length;
-        try {
-            // Tải hình ảnh mới từ URL
-            ImageIcon newImage = new ImageIcon(new URL(imageUrls[currentImageIndex]));
-            carouselLabel.setIcon(newImage);  // Cập nhật hình ảnh
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Tạo panel cho các nút Đăng nhập và Đăng ký
-    private JPanel createButtonsPanel() {
+    private JPanel createGamingButtonsPanel() {
         JPanel buttonsPanel = new JPanel();
-        buttonsPanel.setLayout(new FlowLayout(FlowLayout.RIGHT)); // Đặt các nút ở phía bên phải
-        buttonsPanel.setPreferredSize(new Dimension(800, 60));  // Giảm kích thước panel chứa các nút
+        buttonsPanel.setOpaque(false);
+        buttonsPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 20, 20));
+        buttonsPanel.setBorder(BorderFactory.createEmptyBorder(20, 0, 0, 20));
 
-        // Tạo nút Đăng nhập
-        JButton loginButton = new JButton("Đăng nhập");
-        loginButton.setPreferredSize(new Dimension(100, 30));  // Giảm kích thước nút Đăng nhập
-        loginButton.addActionListener(e -> openLoginForm());  // Mở form đăng nhập
+        JButton loginButton = createGamingButton("LOGIN");
+        loginButton.addActionListener(e -> openLoginForm());
         buttonsPanel.add(loginButton);
 
-        // Tạo nút Đăng ký
-        JButton registerButton = new JButton("Đăng ký");
-        registerButton.setPreferredSize(new Dimension(100, 30));  // Giảm kích thước nút Đăng ký
-        registerButton.addActionListener(e -> openRegistrationForm());  // Mở form đăng ký
+        JButton registerButton = createGamingButton("REGISTER");
+        registerButton.addActionListener(e -> openRegistrationForm());
         buttonsPanel.add(registerButton);
 
         return buttonsPanel;
     }
 
+    private JButton createGamingButton(String text) {
+        JButton button = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                
+                // Button background
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(0, 100, 255));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(0, 150, 255));
+                } else {
+                    g2.setColor(new Color(0, 50, 150, 200));
+                }
+                
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
+                
+                // Button border
+                g2.setColor(new Color(0, 255, 255));
+                g2.setStroke(new BasicStroke(2));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 15, 15);
+                
+                // Button text
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Arial", Font.BOLD, 14));
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
+                g2.drawString(getText(), x, y);
+                
+                g2.dispose();
+            }
+            
+            @Override
+            public Dimension getPreferredSize() {
+                return new Dimension(120, 40);
+            }
+        };
+        
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        
+        // Add hover effect
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                setCursor(new Cursor(Cursor.HAND_CURSOR));
+            }
+            
+            @Override
+            public void mouseExited(MouseEvent e) {
+                setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            }
+        });
+        
+        return button;
+    }
+
     private void openLoginForm() {
-        // Mở form đăng nhập
         new LoginFrom().setVisible(true);
-        dispose();  // Đóng form trang chủ khi chuyển đến trang đăng nhập
+        dispose();
     }
 
     private void openRegistrationForm() {
-        // Mở form đăng ký
         new RegistrationForm().setVisible(true);
-        dispose();  // Đóng form trang chủ khi chuyển đến trang đăng ký
+        dispose();
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new HomePage().setVisible(true);
+            HomePage homePage = new HomePage();
+            homePage.setVisible(true);
         });
     }
 }
