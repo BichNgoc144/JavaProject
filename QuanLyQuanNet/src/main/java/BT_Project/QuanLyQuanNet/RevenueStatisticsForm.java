@@ -19,18 +19,20 @@ public class RevenueStatisticsForm extends JFrame {
     private DefaultTableModel tableModel;
     private JPanel chartPanel;
     private JTable revenueTable;
-    private JComboBox<String> timeRangeCombo;
+    private JButton btnRefresh;
     private JButton btnBack;
+    private JButton btnDailyView;
+    private JButton btnMonthlyView;
+    private boolean isMonthlyView = false;
 
     public RevenueStatisticsForm() {
         setTitle("THỐNG KÊ DOANH THU - GAME CENTER ADMIN");
-        setSize(1200, 700);
+        setSize(800, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         getContentPane().setBackground(DARK_BG);
         setLayout(new BorderLayout(10, 10));
         
-
         // Panel tiêu đề
         JPanel headerPanel = new JPanel();
         headerPanel.setBackground(new Color(20, 20, 35));
@@ -53,30 +55,13 @@ public class RevenueStatisticsForm extends JFrame {
         headerPanel.add(subTitleLabel);
         add(headerPanel, BorderLayout.NORTH);
 
-        // Panel điều khiển
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
-        controlPanel.setBackground(new Color(20, 20, 35));
-        controlPanel.setBorder(new EmptyBorder(10, 0, 10, 0));
-        
-        timeRangeCombo = new JComboBox<>(new String[]{"Theo ngày", "Theo tháng"});
-        styleComboBox(timeRangeCombo);
-        
-        btnBack = createGamingButton("QUAY LẠI", new Color(150, 0, 255));
-        JButton btnRefresh = createGamingButton("LÀM MỚI", ACCENT_COLOR);
-        
-        controlPanel.add(new JLabel("Xem theo:"));
-        controlPanel.add(timeRangeCombo);
-        controlPanel.add(btnRefresh);
-        controlPanel.add(btnBack);
-        add(controlPanel, BorderLayout.SOUTH);
-
         // Panel chính chứa bảng và biểu đồ
         JPanel mainContentPanel = new JPanel(new GridLayout(1, 2, 10, 0));
         mainContentPanel.setBackground(DARK_BG);
         mainContentPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         // Bảng dữ liệu
-        tableModel = new DefaultTableModel(null, new String[]{"Thời gian", "Doanh thu (VNĐ)"}) {
+        tableModel = new DefaultTableModel(null, new String[]{"Ngày", "Doanh thu (VNĐ)"}) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -113,56 +98,83 @@ public class RevenueStatisticsForm extends JFrame {
 
         // Panel biểu đồ
         chartPanel = new JPanel(new BorderLayout());
+        chartPanel.setBackground(new Color(25, 25, 40));
         chartPanel.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 70)));
         mainContentPanel.add(chartPanel);
 
         add(mainContentPanel, BorderLayout.CENTER);
+        
+        // Panel chọn chế độ xem
+        JPanel viewPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        viewPanel.setBackground(new Color(20, 20, 35));
+        viewPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(ACCENT_COLOR), 
+            "CHẾ ĐỘ XEM", 
+            TitledBorder.CENTER, 
+            TitledBorder.TOP, 
+            new Font("Segoe UI", Font.BOLD, 12), 
+            ACCENT_COLOR
+        ));
+        
+        btnDailyView = createGamingButton("THEO NGÀY", new Color(0, 150, 200));
+        btnMonthlyView = createGamingButton("THEO THÁNG", new Color(0, 150, 200));
+        btnDailyView.setEnabled(false); // Mặc định là chế độ xem theo ngày
+        
+        viewPanel.add(btnDailyView);
+        viewPanel.add(btnMonthlyView);
+        
+        // Footer panel with buttons
+        JPanel footerPanel = new JPanel(new BorderLayout());
+        footerPanel.setBackground(new Color(20, 20, 35));
+        footerPanel.setBorder(new EmptyBorder(5, 10, 5, 10));
+        
+        footerPanel.add(viewPanel, BorderLayout.NORTH);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        buttonPanel.setBackground(new Color(20, 20, 35));
+        
+        btnRefresh = createGamingButton("LÀM MỚI", ACCENT_COLOR);
+        btnBack = createGamingButton("QUAY LẠI", new Color(150, 0, 255));
+        
+        buttonPanel.add(btnRefresh);
+        buttonPanel.add(btnBack);
+        footerPanel.add(buttonPanel, BorderLayout.CENTER);
+        
+        add(footerPanel, BorderLayout.SOUTH);
 
         // Sự kiện
-        timeRangeCombo.addActionListener(e -> {
-            String selection = (String) timeRangeCombo.getSelectedItem();
-            if ("Theo ngày".equals(selection)) {
-                loadDailyRevenue();
-            } else {
-                loadMonthlyRevenue();
-            }
-        });
-
         btnBack.addActionListener(e -> {
             new GiaoDienAdmin().setVisible(true);
             dispose();
         });
 
         btnRefresh.addActionListener(e -> {
-            String selection = (String) timeRangeCombo.getSelectedItem();
-            if ("Theo ngày".equals(selection)) {
-                loadDailyRevenue();
+            if (isMonthlyView) {
+                loadMonthlyRevenue();
             } else {
+                loadDailyRevenue();
+            }
+        });
+        
+        btnDailyView.addActionListener(e -> {
+            if (isMonthlyView) { // Chỉ thực hiện khi đang ở chế độ xem theo tháng
+                isMonthlyView = false;
+                btnDailyView.setEnabled(false);
+                btnMonthlyView.setEnabled(true);
+                loadDailyRevenue();
+            }
+        });
+        
+        btnMonthlyView.addActionListener(e -> {
+            if (!isMonthlyView) { // Chỉ thực hiện khi đang ở chế độ xem theo ngày
+                isMonthlyView = true;
+                btnMonthlyView.setEnabled(false);
+                btnDailyView.setEnabled(true);
                 loadMonthlyRevenue();
             }
         });
 
         loadDailyRevenue();
-    }
-
-    private void styleComboBox(JComboBox<String> comboBox) {
-        comboBox.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        comboBox.setBackground(new Color(30, 30, 45));
-        comboBox.setForeground(TEXT_COLOR);
-        comboBox.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(50, 50, 70)),
-            BorderFactory.createEmptyBorder(5, 10, 5, 10)
-        ));
-        comboBox.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, 
-                    boolean isSelected, boolean cellHasFocus) {
-                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                setBackground(isSelected ? ACCENT_COLOR : new Color(30, 30, 45));
-                setForeground(isSelected ? Color.BLACK : TEXT_COLOR);
-                return this;
-            }
-        });
     }
 
     private JButton createGamingButton(String text, Color color) {
@@ -193,9 +205,11 @@ public class RevenueStatisticsForm extends JFrame {
     private void loadDailyRevenue() {
         String[] columns = {"Ngày", "Doanh thu (VNĐ)"};
         tableModel.setColumnIdentifiers(columns);
+        tableModel.setRowCount(0);
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
         try (Connection conn = KetNoiCSDL.getConnection()) {
+            // Fix SQL error by making sure all columns in SELECT are in GROUP BY or using aggregate functions
             String sql = "SELECT DATE(start_time) AS date, SUM(total_amount) AS total_revenue " +
                     "FROM machine_usage " +
                     "WHERE total_amount > 0 " +
@@ -204,7 +218,6 @@ public class RevenueStatisticsForm extends JFrame {
             
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(sql)) {
-                tableModel.setRowCount(0);
                 while (rs.next()) {
                     String date = rs.getString("date");
                     double revenue = rs.getDouble("total_revenue");
@@ -226,23 +239,37 @@ public class RevenueStatisticsForm extends JFrame {
     private void loadMonthlyRevenue() {
         String[] columns = {"Tháng", "Doanh thu (VNĐ)"};
         tableModel.setColumnIdentifiers(columns);
+        tableModel.setRowCount(0);
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
         try (Connection conn = KetNoiCSDL.getConnection()) {
-            String sql = "SELECT DATE_FORMAT(start_time, '%Y-%m') AS month, SUM(total_amount) AS total_revenue " +
-                    "FROM machine_usage " +
-                    "WHERE total_amount > 0 " +
-                    "GROUP BY DATE_FORMAT(start_time, '%Y-%m') " +
-                    "ORDER BY month DESC LIMIT 12"; // Giới hạn 12 tháng gần nhất
+            // SQL để lấy doanh thu theo tháng
+            String sql = "SELECT DATE_FORMAT(start_time, '%Y-%m') AS month, " +
+                         "SUM(total_amount) AS total_revenue " +
+                         "FROM machine_usage " +
+                         "WHERE total_amount > 0 " +
+                         "GROUP BY DATE_FORMAT(start_time, '%Y-%m') " +
+                         "ORDER BY month DESC LIMIT 24"; // Giới hạn 24 tháng gần nhất
             
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(sql)) {
-                tableModel.setRowCount(0);
                 while (rs.next()) {
                     String month = rs.getString("month");
                     double revenue = rs.getDouble("total_revenue");
-                    tableModel.addRow(new Object[]{month, String.format("%,.0f", revenue)});
-                    dataset.addValue(revenue, "Doanh thu", month);
+                    
+                    // Định dạng tháng cho dễ đọc
+                    String formattedMonth = month;
+                    try {
+                        String[] parts = month.split("-");
+                        int year = Integer.parseInt(parts[0]);
+                        int monthNum = Integer.parseInt(parts[1]);
+                        formattedMonth = "Tháng " + monthNum + "/" + year;
+                    } catch (Exception e) {
+                        // Nếu lỗi định dạng, giữ nguyên giá trị ban đầu
+                    }
+                    
+                    tableModel.addRow(new Object[]{formattedMonth, String.format("%,.0f", revenue)});
+                    dataset.addValue(revenue, "Doanh thu", formattedMonth);
                 }
             }
         } catch (SQLException e) {

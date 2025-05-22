@@ -34,18 +34,19 @@ public class UserManagementForm extends JFrame {
         headerPanel.setBackground(new Color(20, 20, 35));
         headerPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, ACCENT_COLOR));
         headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
+        headerPanel.setAlignmentX(LEFT_ALIGNMENT);
         
         JLabel titleLabel = new JLabel("QUẢN LÝ THÀNH VIÊN");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
         titleLabel.setForeground(ACCENT_COLOR);
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        titleLabel.setBorder(new EmptyBorder(15, 0, 10, 0));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        titleLabel.setBorder(new EmptyBorder(15, 20, 10, 0));
         
         JLabel subTitleLabel = new JLabel("Danh sách thành viên và thông tin tài khoản");
         subTitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subTitleLabel.setForeground(TEXT_COLOR);
-        subTitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        subTitleLabel.setBorder(new EmptyBorder(0, 0, 15, 0));
+        subTitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        subTitleLabel.setBorder(new EmptyBorder(0, 20, 15, 0));
         
         headerPanel.add(titleLabel);
         headerPanel.add(subTitleLabel);
@@ -73,6 +74,11 @@ public class UserManagementForm extends JFrame {
                 // Đổi màu chữ
                 c.setForeground(TEXT_COLOR);
                 
+                // Canh lề trái cho tất cả các ô
+                if (c instanceof JLabel) {
+                    ((JLabel) c).setHorizontalAlignment(SwingConstants.LEFT);
+                }
+                
                 return c;
             }
         };
@@ -92,20 +98,30 @@ public class UserManagementForm extends JFrame {
         header.setFont(new Font("Segoe UI", Font.BOLD, 14));
         header.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 70)));
         header.setReorderingAllowed(false);
+        
+        // Canh lề trái cho tiêu đề cột
+        ((DefaultTableCellRenderer)header.getDefaultRenderer()).setHorizontalAlignment(SwingConstants.LEFT);
 
         JScrollPane scrollPane = new JScrollPane(userTable);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(DARK_BG);
         add(scrollPane, BorderLayout.CENTER);
         
-        // Thêm nút chi tiết
+        // Thêm nút chi tiết với căn lề trái
         userTable.getColumn("CHI TIẾT").setCellRenderer(new ButtonRenderer());
         userTable.getColumn("CHI TIẾT").setCellEditor(new ButtonEditor(new JCheckBox()));
+        
+        // Thiết lập căn lề trái cho các cột còn lại
+        DefaultTableCellRenderer leftRenderer = new DefaultTableCellRenderer();
+        leftRenderer.setHorizontalAlignment(JLabel.LEFT);
+        userTable.getColumnModel().getColumn(0).setCellRenderer(leftRenderer); // USERNAME
+        userTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer); // BALANCE
+        userTable.getColumnModel().getColumn(2).setCellRenderer(leftRenderer); // LAST ONLINE
 
         // Panel nút điều khiển
-        JPanel controlPanel = new JPanel();
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         controlPanel.setBackground(new Color(20, 20, 35));
-        controlPanel.setBorder(new EmptyBorder(10, 0, 10, 0));
+        controlPanel.setBorder(new EmptyBorder(10, 20, 10, 0));
         
         btnBack = createGamingButton("QUAY LẠI", new Color(150, 0, 255));
         btnBack.addActionListener(e -> {
@@ -183,7 +199,7 @@ public class UserManagementForm extends JFrame {
                             username,
                             String.format("%,.0f", balance),
                             lastUsageStr,
-                            "CHI TIẾT"
+                            "XEM CHI TIẾT"
                     });
 
                     rowUserIdMap.put(rowIndex, userId);
@@ -202,14 +218,15 @@ public class UserManagementForm extends JFrame {
     private class ButtonRenderer extends JButton implements TableCellRenderer {
         public ButtonRenderer() {
             setOpaque(true);
-            setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+            setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 10)); // Giảm padding bên trái
             setFont(new Font("Segoe UI", Font.BOLD, 12));
+            setHorizontalAlignment(SwingConstants.LEFT); // Canh lề trái
         }
         
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
-            setText("XEM CHI TIẾT");
+            setText(value.toString());
             setBackground(isSelected ? ACCENT_COLOR.darker() : new Color(70, 70, 90));
             setForeground(Color.WHITE);
             return this;
@@ -229,7 +246,8 @@ public class UserManagementForm extends JFrame {
             button.setBackground(new Color(70, 70, 90));
             button.setForeground(Color.WHITE);
             button.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+            button.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 10)); // Giảm padding bên trái
+            button.setHorizontalAlignment(SwingConstants.LEFT); // Canh lề trái
             button.addActionListener(e -> fireEditingStopped());
         }
 
